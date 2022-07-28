@@ -45,7 +45,9 @@ module.exports = function(router, database) {
         req.session.userId = user.id;
         res.send({user: {name: user.name, email: user.email, id: user.id}});
       })
-      .catch(e => res.send(e));
+      .catch(e => {
+        res.send(e)
+      });
   });
   
   router.post('/logout', (req, res) => {
