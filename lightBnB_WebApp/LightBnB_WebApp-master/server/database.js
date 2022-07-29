@@ -162,8 +162,6 @@ const getAllProperties = function(options, limit = 10) {
   ORDER BY cost_per_night
   LIMIT $${queryParams.length};
   `;
-  console.log(options)
-  console.log(queryString, queryParams);
 
   return pool.query(queryString, queryParams)
     .then((res) => {
@@ -178,9 +176,19 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function(property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  const fields = Object.keys(property).filter(field => !!property[field])
+  let values = '';
+  for(let field of fields){
+    values = `${values},'${property[field]}'`;
+  }
+
+  values = values.substring(1);
+
+  return pool.query(
+    `INSERT INTO properties(${fields.toString()})
+    VALUES(${values})
+    RETURNING *`
+  )
+  
 }
 exports.addProperty = addProperty;
