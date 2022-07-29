@@ -103,13 +103,71 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  return pool.query(`SELECT * FROM properties LIMIT $1`, [limit] )
-  .then((result) => {
-    return result.rows
-  })
-  .catch((err) => {
-    console.log(err.message);
-  });
+  const queryParams = [];
+  
+  let queryString = `
+  SELECT properties.*, tb1.average_rating 
+  FROM properties
+  JOIN 
+  (SELECT property_id, AVG(rating) AS average_rating 
+  FROM property_reviews group by property_id) as tb1 
+  ON properties.id = tb1.property_id
+  `
+  let whereString = ''
+
+  if(options.city) {
+    queryParams.push(`%${options.city}%`);
+    whereString += ` LOWER(city) LIKE LOWER($${queryParams.length})`;
+  };
+
+  if(options.owner_id) {
+    queryParams.push(options.owner_id);
+    if (whereString) {
+      whereString += ` AND`
+    }
+    whereString += ` owner_id = $${queryParams.length}`
+  };
+
+  if(options.minimum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night * 100);
+    if (whereString) {
+      whereString += ` AND`
+    }
+    whereString += ` cost_per_night >= $${queryParams.length}`
+  };
+
+  if(options.maximum_price_per_night) {
+    queryParams.push(options.maximum_price_per_night * 100);
+    if (whereString) {
+      whereString += ` AND`
+    }
+    whereString = `${whereString} cost_per_night <= $${queryParams.length}`
+  };
+  if(options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    if (whereString) {
+      whereString += ` AND`
+    }
+    whereString = `${whereString} tb1.average_rating >= $${queryParams.length}`
+  };
+
+  if (whereString) {
+    whereString = ` WHERE ${whereString}` 
+  }
+
+  queryParams.push(limit);
+  queryString = `
+  ${queryString}
+  ${whereString} 
+  ORDER BY cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+  console.log(options)
+  console.log(queryString, queryParams);
+
+  return pool.query(queryString, queryParams)
+    .then((res) => {
+      return res.rows});
 }
 exports.getAllProperties = getAllProperties;
 
